@@ -1,0 +1,15 @@
+Grupo: Caio Bandeira, Davih Asaph, José Marques e Maurício Miranda
+
+
+Projeto com 3 redes diferentes: EfficientNet-B0, Resnet18 e AlexNet.
+
+Fizemos para cada uma os 3 tipos de finetuning.
+
+Pontos fortes: 
+
+Foi feito Cross-Validation para avaliação de robustez, os 3 fine-tunings implementados.
+3 redes implementadas. Uma rede mais clássica(alexnet), uma residual(resnet) e uma mais moderna(efficientnet)
+
+Problemas:
+
+Inferências incompletas, em questão de organizar as métricas de melhor forma em um JSON, otimizar visualização de métricas e escolha das métricas que aparecem na tabela.
