@@ -3,15 +3,18 @@
 <img src="https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white"/>
 <img src="https://img.shields.io/badge/PyTorch-2.x-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white"/>
 <img src="https://img.shields.io/badge/Kaggle-GPU%20T4-20BEFF?style=for-the-badge&logo=kaggle&logoColor=white"/>
-<img src="https://img.shields.io/badge/Status-Fase%201%20Concluída-brightgreen?style=for-the-badge"/>
+<img src="https://img.shields.io/badge/OpenCV-Webcam-5C3EE8?style=for-the-badge&logo=opencv&logoColor=white"/>
+<img src="https://img.shields.io/badge/Optuna-HPO-2C3E50?style=for-the-badge"/>
+<img src="https://img.shields.io/badge/YOLOv11n--face-Detecção-111F68?style=for-the-badge"/>
+<img src="https://img.shields.io/badge/Status-Fases%201%20e%202%20Concluídas-brightgreen?style=for-the-badge"/>
 
 <br/><br/>
 
-# 👁️ Visão Computacional — Reconhecimento de Pessoas
+# 👁️ Visão Computacional — Pessoas e Expressões Faciais
 
-### Projeto acadêmico de visão computacional em 3 fases: classificação, detecção e reconhecimento de expressões faciais
+### Classificação de pessoas, detecção multi-face e reconhecimento de expressões faciais em imagens e vídeo
 
-**Universidade** · Grupo 05 · 2026
+**Universidade Federal do Maranhão (UFMA)** · Grupo 05 · 2026
 
 </div>
 
@@ -31,16 +34,17 @@
 ## 🗺️ Roadmap do Projeto
 
 ```
-✅ Fase 1 — Reconhecimento de pessoas numa imagem          [CONCLUÍDA]
-           Classificador binário com Transfer Learning
+✅ Fase 1 — Reconhecimento de pessoas numa imagem            [CONCLUÍDA]
+           Classificação binária com Transfer Learning
            (AlexNet · ResNet18 · EfficientNet-B0)
 
-🔜 Fase 2 — Segmentação e detecção de pessoas             [Em breve]
-           Detecção com bounding box usando YOLO ou DETR
-
-🔜 Fase 3 — Reconhecimento de expressão facial            [Em breve]
-           Classificação de emoções a partir dos rostos detectados
+✅ Fase 2 — Detecção facial e reconhecimento de expressões   [CONCLUÍDA]
+           CNN inspirada na AnyNet + otimização com Optuna
+           Detecção de múltiplos rostos com YOLOv11n-face
+           Aplicação em tempo real com webcam
 ```
+
+> **Atualização do enunciado:** na versão mais recente da atividade, a detecção dos rostos e o reconhecimento das expressões foram reunidos na **Fase 2**. Por isso, a antiga Fase 3 não aparece separadamente nesta README.
 
 ---
 
@@ -282,72 +286,312 @@ Para o Grad-CAM, o fold com **maior F1 no teste** de cada experimento foi seleci
 
 ---
 
+# 🎭 Fase 2 — Detecção Facial e Reconhecimento de Expressões
+
+> **Objetivo:** detectar todos os rostos presentes em uma imagem ou quadro de vídeo e classificar a expressão facial de cada pessoa individualmente.
+
+A segunda fase integra duas tarefas de visão computacional em um único fluxo:
+
+1. **Detecção facial**, responsável por localizar cada rosto e gerar sua *bounding box*;
+2. **Classificação de expressão**, responsável por analisar o recorte de cada rosto e atribuir uma emoção.
+
+O detector permanece fixo como **YOLOv11n-face**, enquanto o modelo usado para inferência de emoções pode ser alterado pela própria interface da aplicação.
+
+---
+
+## 🗂️ Dataset — FERPlus
+
+O treinamento do classificador de emoções foi realizado com o **FERPlus**, dataset de expressões faciais recomendado para a atividade. As imagens passam pelas rotinas de pré-processamento e *data augmentation* definidas no notebook antes de serem enviadas à CNN.
+
+### Classes de expressão
+
+| Classe | Exibição na aplicação | Emoji |
+|--------|-----------------------|-------|
+| Neutral | Neutro | 😐 |
+| Happiness | Feliz | 😀 |
+| Surprise | Surpreso | 😮 |
+| Sadness | Triste | 😢 |
+| Anger | Raiva | 😠 |
+| Disgust | Nojo | 🤢 |
+| Fear | Medo | 😨 |
+| Contempt | Desprezo | 😒 |
+
+> A ordem interna das classes deve permanecer igual à utilizada durante o treinamento e salva no checkpoint do classificador.
+
+---
+
+## 🧠 CNN Inspirada na AnyNet
+
+Em vez de utilizar somente uma arquitetura clássica pronta, foi construída uma CNN seguindo os conceitos de **estimação e organização de arquiteturas da AnyNet**, apresentados no capítulo de projeto de CNNs modernas do *Dive into Deep Learning*.
+
+A rede é organizada em componentes configuráveis:
+
+```text
+Imagem facial
+    ↓
+Stem convolucional
+    ↓
+Estágio 1 — blocos convolucionais
+    ↓
+Estágio 2 — aumento de canais e redução espacial
+    ↓
+Estágio 3 — extração de características de maior nível
+    ↓
+Global Average Pooling
+    ↓
+Dropout + camada totalmente conectada
+    ↓
+Probabilidades das expressões faciais
+```
+
+Entre os elementos avaliados durante os experimentos estão:
+
+- quantidade de estágios e blocos;
+- número de canais por estágio;
+- regularização por dropout e weight decay;
+- taxa de aprendizado e otimizador;
+- tamanho de lote e estratégia de treinamento;
+- desempenho médio em validação cruzada.
+
+---
+
+## 🔎 Otimização com Optuna
+
+O **Optuna** foi utilizado para automatizar a busca de configurações da arquitetura e do treinamento. Cada *trial* representa uma configuração completa, avaliada com **validação cruzada estratificada de 5 folds**.
+
+```text
+Trial do Optuna
+    ├── Fold 1: treino → validação → métricas
+    ├── Fold 2: treino → validação → métricas
+    ├── Fold 3: treino → validação → métricas
+    ├── Fold 4: treino → validação → métricas
+    └── Fold 5: treino → validação → métricas
+             ↓
+      F1-score médio do trial
+             ↓
+   Seleção da melhor configuração
+```
+
+Durante o treinamento são registrados, por época e por fold:
+
+- loss de treino e validação;
+- acurácia;
+- precisão, recall e F1-score;
+- melhor checkpoint;
+- estado do estudo do Optuna;
+- informações necessárias para retomar uma execução interrompida.
+
+<!-- Adicione aqui o link do projeto no Weights & Biases caso ele faça parte da versão entregue. -->
+
+---
+
+## 🎯 Detecção Facial com YOLOv11n-face
+
+A aplicação utiliza exclusivamente o **YOLOv11n-face** para detectar os rostos. O detector é executado uma vez em cada quadro da webcam e retorna todas as faces encontradas, em vez de analisar apenas a maior face da cena.
+
+Para cada detecção, a aplicação:
+
+```text
+Frame da webcam
+    ↓
+YOLOv11n-face
+    ↓
+Bounding boxes de todos os rostos
+    ↓
+Recorte individual de cada face
+    ↓
+Pré-processamento do classificador
+    ↓
+CNN de expressão facial
+    ↓
+Classe + confiança + emoji
+    ↓
+Resultado desenhado no frame
+```
+
+O uso de um detector separado do classificador permite que cada componente seja atualizado sem alterar o restante do pipeline.
+
+---
+
+## 🖥️ Aplicação em Tempo Real
+
+A aplicação final foi desenvolvida para trabalhar com webcam e realizar inferência em tempo real.
+
+### Funcionalidades implementadas
+
+- captura contínua dos quadros da webcam;
+- detecção simultânea de múltiplos rostos;
+- classificação independente da expressão de cada pessoa;
+- bounding box com emoção, confiança e emoji correspondente;
+- HUD com FPS, quantidade de faces e informações de execução;
+- exibição do **modelo de classificação de emoções** atualmente selecionado;
+- troca do modelo de inferência emocional sem alterar o YOLOv11n-face;
+- carregamento dos emojis por arquivos PNG;
+- controle de limiares de confiança da detecção e da classificação.
+
+### Separação de responsabilidades
+
+| Componente | Responsabilidade |
+|------------|------------------|
+| `YOLOv11n-face` | Encontrar e delimitar todos os rostos |
+| Classificador de emoções | Determinar a expressão de cada recorte facial |
+| OpenCV | Capturar a webcam e desenhar a interface |
+| Emojis PNG | Representar visualmente a emoção prevista |
+| HUD | Exibir modelo, FPS, faces e parâmetros ativos |
+
+---
+
+## 📊 Avaliação da Fase 2
+
+A avaliação do classificador é realizada separadamente da aplicação em tempo real. Os notebooks armazenam resultados por fold, matrizes de confusão, curvas de treinamento e métricas agregadas.
+
+As métricas consolidadas da configuração final devem ser obtidas diretamente dos artefatos gerados pelo treinamento. Elas não foram copiadas para esta README sem os arquivos finais de resultados, evitando registrar números incompletos ou de execuções interrompidas.
+
+### Artefatos produzidos
+
+- estudo do Optuna e histórico dos trials;
+- checkpoints por fold e melhor checkpoint global;
+- métricas por classe e médias macro;
+- matrizes de confusão;
+- curvas de loss e desempenho;
+- aplicação de webcam com inferência multi-face;
+- detector `yolov11n-face.pt` e classificadores de emoção.
+
+---
+
+## 🧩 Principais Desafios Técnicos
+
+- manter a correspondência correta entre índices, nomes e emojis das emoções;
+- lidar com o desbalanceamento natural entre as classes do FERPlus;
+- evitar vazamento de dados durante a validação cruzada;
+- preservar checkpoints para continuar treinamentos interrompidos;
+- executar detecção e classificação com latência suficiente para webcam;
+- recortar rostos próximos às bordas sem gerar regiões inválidas;
+- suportar várias pessoas no mesmo frame;
+- separar a troca do classificador de emoções do detector facial.
+
+---
+
 ## 📁 Estrutura do Repositório
 
-```
+```text
 visao-computacional/
 │
-├── fase-1/                          # Fase 1: Classificação Binária
-│   ├── alexnetexperiment.ipynb      # AlexNet — 3 regimes × 5 folds + Grad-CAM
-│   ├── resnet18.ipynb               # ResNet18 — 3 regimes × 5 folds + Grad-CAM
-│   ├── efficientnet-b0.ipynb        # EfficientNet-B0 — 3 regimes × 5 folds + Grad-CAM
-│   └── minirelatorio.txt            # Mini-relatório da fase
+├── fase-1/                              # Classificação binária: pessoa vs. não pessoa
+│   ├── alexnetexperiment.ipynb          # AlexNet — 3 regimes × 5 folds + Grad-CAM
+│   ├── resnet18.ipynb                   # ResNet18 — 3 regimes × 5 folds + Grad-CAM
+│   ├── efficientnet-b0.ipynb            # EfficientNet-B0 — 3 regimes × 5 folds + Grad-CAM
+│   └── minirelatorio.txt                # Mini-relatório da fase
 │
-├── fase-2/                          # 🔜 Fase 2: Detecção/Segmentação
-│   └── (em desenvolvimento)
-│
-├── fase-3/                          # 🔜 Fase 3: Expressão Facial
-│   └── (em desenvolvimento)
+├── fase-2/                              # Expressões faciais e aplicação com webcam
+│   ├── notebooks/                       # Treinamento, validação cruzada e Optuna
+│   ├── checkpoints/                     # Pesos dos classificadores de emoção
+│   ├── resultados/                      # Métricas, matrizes e curvas
+│   ├── assets/
+│   │   └── emojis/                      # Emojis em PNG usados na interface
+│   ├── models/
+│   │   └── yolov11n-face.pt             # Detector facial fixo
+│   └── face_detection_yolonas_comp.py   # Aplicação de webcam e inferência multi-face
 │
 └── README.md
 ```
+
+> Os nomes das subpastas podem ser ajustados à organização final do repositório, mantendo a separação entre treinamento, pesos, resultados e aplicação.
 
 ---
 
 ## 🔬 Análise Crítica
 
 ### Pontos Fortes
-- **Protocolo rigoroso:** Validação cruzada estratificada com 5 folds garante estimativas robustas e sem vazamento de dados.
-- **Três regimes de transfer learning** implementados e comparados de forma sistemática.
-- **Diversidade arquitetural:** uma rede clássica (AlexNet), uma residual (ResNet18) e uma eficiente moderna (EfficientNet-B0) — cada uma com características distintas.
-- **Grad-CAM** implementado para interpretabilidade, selecionando automaticamente o melhor fold.
-- **Scheduler cosine annealing** no Full FT para estabilizar o treinamento em longa duração.
 
-### Limitações e Próximos Passos
-- Inferências incompletas em alguns cenários de borda — métricas por classe poderiam ser mais granularizadas no JSON de saída.
-- Visualização de métricas pode ser aprimorada com gráficos interativos (ex: Plotly).
-- Explorar **data augmentation mais agressivo** (mixup, cutout) para reduzir overfitting no Full FT.
-- Considerar **ensemble** dos três modelos para ganho de performance adicional.
+- **Protocolo rigoroso na Fase 1:** validação cruzada estratificada com 5 folds e comparação sistemática de três arquiteturas e três regimes de transfer learning.
+- **Diversidade arquitetural:** AlexNet, ResNet18 e EfficientNet-B0 representam abordagens clássica, residual e eficiente.
+- **Interpretabilidade:** Grad-CAM foi utilizado para verificar as regiões relevantes para a decisão dos classificadores.
+- **Arquitetura própria na Fase 2:** a CNN de emoções foi montada com conceitos de projeto da AnyNet, em vez de depender apenas de uma rede pronta.
+- **Otimização automatizada:** Optuna foi integrado ao protocolo de validação cruzada para comparar configurações completas.
+- **Pipeline modular:** detecção facial e classificação emocional são componentes independentes.
+- **Aplicação multi-face:** todas as pessoas detectadas no ambiente são processadas individualmente.
+- **Continuidade de treinamento:** checkpoints e estados de execução reduzem a perda de progresso em sessões interrompidas.
+
+### Limitações
+
+- classes menos frequentes do FERPlus podem apresentar maior variabilidade de desempenho;
+- iluminação, oclusões, rotação da cabeça e baixa resolução podem afetar a inferência em webcam;
+- a emoção facial prevista representa um padrão visual e não deve ser interpretada como diagnóstico do estado emocional real da pessoa;
+- a velocidade depende da câmera, do hardware e da quantidade de rostos no frame;
+- os resultados da detecção e da classificação devem ser avaliados separadamente para identificar a origem dos erros.
+
+### Possíveis Evoluções
+
+- adicionar explicabilidade ao classificador de emoções com Grad-CAM;
+- calibrar probabilidades e limiares por classe;
+- testar técnicas adicionais para desbalanceamento;
+- exportar os modelos para ONNX ou TensorRT;
+- adicionar processamento de vídeos gravados e imagens estáticas;
+- comparar novos classificadores mantendo o YOLOv11n-face fixo;
+- criar relatórios automáticos com métricas e exemplos de acertos e erros.
 
 ---
 
 ## 🛠️ Como Reproduzir
 
-### Pré-requisitos
+### Pré-requisitos gerais
 
 ```bash
-pip install torch torchvision timm torchmetrics scikit-learn matplotlib seaborn pandas numpy
+pip install torch torchvision timm torchmetrics scikit-learn \
+    matplotlib seaborn pandas numpy pillow opencv-python \
+    ultralytics optuna
 ```
 
-### Dataset
-
-1. Baixe o **Pascal VOC 2012** em: http://host.robots.ox.ac.uk/pascal/VOC
-2. Extraia para `/kaggle/input/datasets/huanghanchina/pascal-voc-2012/VOC2012` (ou ajuste o caminho no notebook)
-
-### Execução
+Caso a versão entregue utilize o rastreamento online previsto no enunciado:
 
 ```bash
-# Rodar cada notebook sequencialmente:
+pip install wandb
+```
+
+### Fase 1 — Pascal VOC 2012
+
+1. Baixe o **Pascal VOC 2012** em: http://host.robots.ox.ac.uk/pascal/VOC
+2. Extraia o dataset para o caminho configurado nos notebooks.
+3. Execute os experimentos:
+
+```bash
 jupyter nbconvert --to notebook --execute alexnetexperiment.ipynb
 jupyter nbconvert --to notebook --execute resnet18.ipynb
 jupyter nbconvert --to notebook --execute efficientnet-b0.ipynb
 ```
 
-> **Recomendado:** Executar no **Kaggle** com GPU T4 habilitada. Cada notebook leva ~2–3h com GPU.
+### Fase 2 — FERPlus e Optuna
+
+1. Baixe o **FERPlus** em: https://www.kaggle.com/datasets/arnabkumarroy02/ferplus
+2. Ajuste no notebook os caminhos do dataset, checkpoints e resultados.
+3. Execute o treinamento em ambiente com GPU.
+4. Preserve o banco/estado do Optuna e os checkpoints para permitir retomada.
+5. Copie o melhor classificador para a pasta de modelos da aplicação.
+
+### Aplicação com webcam
+
+Certifique-se de que os seguintes arquivos estão disponíveis nos caminhos configurados:
+
+```text
+models/yolov11n-face.pt
+checkpoints/<modelo_de_emocoes>.pt
+assets/emojis/<emocoes>.png
+```
+
+Execute:
+
+```bash
+python face_detection_yolonas_comp.py
+```
+
+> Para a aplicação local, permita o acesso à câmera e confirme que o índice configurado da webcam está correto. Para treinamento e otimização, recomenda-se utilizar o Kaggle com GPU habilitada.
 
 ---
 
 ## 📚 Referências
+
+### Fase 1
 
 - Krizhevsky, A., Sutskever, I., & Hinton, G. E. (2012). *ImageNet Classification with Deep Convolutional Neural Networks.* NeurIPS.
 - He, K., Zhang, X., Ren, S., & Sun, J. (2016). *Deep Residual Learning for Image Recognition.* CVPR.
@@ -355,11 +599,21 @@ jupyter nbconvert --to notebook --execute efficientnet-b0.ipynb
 - Selvaraju, R. R., et al. (2017). *Grad-CAM: Visual Explanations from Deep Networks via Gradient-based Localization.* ICCV.
 - Everingham, M., et al. (2010). *The Pascal Visual Object Classes (VOC) Challenge.* IJCV.
 
+### Fase 2
+
+- Barsoum, E., Zhang, C., Ferrer, C. C., & Zhang, Z. (2016). *Training Deep Networks for Facial Expression Recognition with Crowd-Sourced Label Distribution.*
+- Zhang, A., Lipton, Z. C., Li, M., & Smola, A. J. *Dive into Deep Learning — Designing Convolution Network Architectures.* https://d2l.ai/chapter_convolutional-modern/cnn-design.html
+- Akiba, T., Sano, S., Yanase, T., Ohta, T., & Koyama, M. (2019). *Optuna: A Next-generation Hyperparameter Optimization Framework.* KDD.
+- Optuna. https://optuna.org/
+- Weights & Biases. https://wandb.ai/site/
+- FERPlus Dataset. https://www.kaggle.com/datasets/arnabkumarroy02/ferplus
+- Ultralytics YOLO Documentation. https://docs.ultralytics.com/
+
 ---
 
 <div align="center">
 
-**Fase 1 concluída em 08/05/2026**
+**Fase 1 concluída em 08/05/2026 · Fase 2 concluída em 2026**
 
 *Projeto desenvolvido para a disciplina de Visão Computacional — 2026*
 
