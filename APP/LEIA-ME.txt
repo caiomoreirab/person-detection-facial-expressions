@@ -1,0 +1,30 @@
+PROJETO ATUALIZADO: MÚLTIPLOS ROSTOS + EMOJIS
+
+O programa agora:
+- detecta todos os rostos que aparecem na câmera;
+- classifica a expressão de cada rosto separadamente;
+- mostra um emoji ao lado da classificação;
+- exibe uma segunda janela com uma grade de todos os rostos detectados;
+- salva capturas dentro da pasta "capturas".
+
+COMO RODAR
+
+1. Execute instalar_dependencias.bat uma vez.
+2. Depois execute rodar_expressao.bat.
+3. Autorize o acesso à câmera caso o Windows solicite.
+
+CONTROLES
+
+Q = fechar
+S = salvar o frame
++ = aumentar a confiança mínima da YOLO
+- = diminuir a confiança mínima da YOLO
+M = trocar o modelo YOLO
+
+Os caminhos dos modelos são montados automaticamente a partir da pasta onde
+o script está localizado. Não é necessário alterar caminhos do computador.
+
+Arquivos necessários na mesma pasta:
+- face_detection_yolonas_resize.py
+- anynet_fold_1.pth
+- yolov11n-face.pt
